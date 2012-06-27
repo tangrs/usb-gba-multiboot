@@ -1,0 +1,11 @@
+*.eep
+*.lss
+*.lst
+*.map
+*.o
+*.sym
+*.hex
+*.elf
+.dep
+.DS_Store
+gbaxfer
