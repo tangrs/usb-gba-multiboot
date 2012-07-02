@@ -88,10 +88,6 @@ memcpy:
 @ begin relocated code
 
 iwram_code:
-    mrs r0, cpsr
-    orr r0, r0, #0xc0
-    msr cpsr_all, r0
-
     mov r10, #0x04000000
     add r10, r10, #0x120
     ldr r1, magic
