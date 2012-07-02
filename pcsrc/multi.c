@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include "xfer.h"
 #include "gbaencryption.h"
+#include "multi.h"
 
 #define masterwaittime ((1000000/16))
 
@@ -15,12 +16,25 @@ struct gbaCrcEncryptionPair {
     struct gbaEncryptionState encryption;
 };
 
+int gbaMultibootSend(unsigned char* romdata, unsigned length, gbaHandle* gba) {
+    int ret = -1, i;
+
+    for (i=0; (i<10) && ret; i++) {
+        sleep(i/2);
+        if ( (ret = gbaReady(gba)) ) continue;
+        if ( (ret = gbaSendHeader(romdata, gba)) ) continue;
+        if ( (ret = gbaSendMainBlock(romdata, length, gba)) ) continue;
+    }
+
+    return ret;
+}
+
 int gbaReady(gbaHandle* gba) {
     unsigned data, timeout = 33;
     do {
         data = GBA_READY_CMD;
         gba->xfer16(&data, gba);
-        fprintf(stderr,"Ready: Recieved %04x\n",data);
+        fprintf(stderr,"\rReady: Recieved %04x",data);
         timeout--;
         usleep(masterwaittime);
     } while (data != GBA_READY_REPLY && timeout);
@@ -73,8 +87,8 @@ static struct gbaCrcEncryptionPair gbaGetKeys(unsigned length, gbaHandle* gba) {
     fprintf(stderr,"Length information exchange: Recieved %04x\n",data);
     rr = data & 0xff;
 
-    gbaCrcInit(hh, rr, &state.crc);
-    gbaEncryptionInit(encryptionseed, &state.encryption);
+    gbaCrcInit(hh, rr, gba->mode, &state.crc);
+    gbaEncryptionInit(encryptionseed, gba->mode, &state.encryption);
     state.init = 1;
 
     return state;
@@ -97,21 +111,31 @@ int gbaSendMainBlock(unsigned char* rom, unsigned length, gbaHandle* gba) {
 
         gbaCrcAdd(data32, &crcenc.crc);
         data32 = gbaEncrypt(data32, clientptr, &crcenc.encryption);
+        if (gba->xfer32) {
+            gba->xfer32(&data32, gba);
+            data32 >>= 16;
 
-        data = data32;
-        gba->xfer16(&data, gba);
-        fprintf(stderr,"\rMain block (%02d%%): Recieved %04x",(clientptr*100)/length,data);
-        if (data != (clientptr&0xffff)) {
-            fprintf(stderr,"\nTransmission error");
-            return -1;
-        }
+            fprintf(stderr,"\rMain block (%02d%%): Recieved %04x",(clientptr*100)/length,data32);
+            if (data32 != (clientptr&0xffff)) {
+                fprintf(stderr,"\nTransmission error");
+                return -1;
+            }
+        }else{
+            data = data32;
+            gba->xfer16(&data, gba);
+            fprintf(stderr,"\rMain block (%02d%%): Recieved %04x",(clientptr*100)/length,data);
+            if (data != (clientptr&0xffff)) {
+                fprintf(stderr,"\nTransmission error");
+                return -1;
+            }
 
-        data = data32>>16;
-        gba->xfer16(&data, gba);
-        fprintf(stderr,"\rMain block (%02d%%): Recieved %04x",((clientptr+2)*100)/length,data);
-        if (data != ((clientptr+2)&0xffff)) {
-            fprintf(stderr,"\nTransmission error");
-            return -1;
+            data = data32>>16;
+            gba->xfer16(&data, gba);
+            fprintf(stderr,"\rMain block (%02d%%): Recieved %04x",((clientptr+2)*100)/length,data);
+            if (data != ((clientptr+2)&0xffff)) {
+                fprintf(stderr,"\nTransmission error");
+                return -1;
+            }
         }
     }
 

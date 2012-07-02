@@ -2,7 +2,7 @@ CC = gcc
 LD = gcc
 CFLAGS += -Wall -ggdb
 TARGET = gbaxfer
-OBJS = main.o xfer.o multi.o gbaencryption.o
+OBJS = main.o xfer.o multi.o gbaencryption.o 2ndloader.o
 
 all: $(TARGET)
 

@@ -1,7 +1,8 @@
 struct gbaHandle;
 typedef struct gbaHandle {
-    int fd;
+    int fd, mode;
     int (*xfer16)(unsigned*,struct gbaHandle*);
+    int (*xfer32)(unsigned*,struct gbaHandle*);
 } gbaHandle;
 
 gbaHandle* initGbaHandle(char* device, int mode);

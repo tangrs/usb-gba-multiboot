@@ -9,3 +9,5 @@
 .dep
 .DS_Store
 gbaxfer
+bin2c
+*.gba

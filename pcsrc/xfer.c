@@ -21,9 +21,11 @@ gbaHandle* initGbaHandle(char* device, int mode) {
     if (mode == MODE_MULTIPLAYER) {
         tio.c_cc[VMIN] = 2;
         gba->xfer16 = xferGbaInt16Multiplayer;
+        gba->xfer32 = NULL;
     }else if (mode == MODE_NORMAL) {
         tio.c_cc[VMIN] = 4;
         gba->xfer16 = xferGbaInt16Normal;
+        gba->xfer32 = xferGbaInt32Normal;
     }else{
         goto error;
     }
@@ -34,6 +36,8 @@ gbaHandle* initGbaHandle(char* device, int mode) {
     if (tcsetattr(gba->fd,TCSANOW,&tio)) {
         goto error;
     }
+
+    gba->mode = mode;
 
     finish:
     return gba;
@@ -97,6 +101,8 @@ int xferGbaInt32Normal(unsigned *data_, gbaHandle* handle) {
 }
 
 int xferGbaInt16Normal(unsigned *data_, gbaHandle* handle) {
-    *data_ &= 0xffff;
-    return xferGbaInt32Normal(data_, handle);
+    (*data_) &= 0xffff;
+    int ret = xferGbaInt32Normal(data_, handle);
+    (*data_) >>= 16;
+    return ret;
 }

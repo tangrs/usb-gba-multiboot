@@ -4,6 +4,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include "xfer.h"
+#include "2ndloader.h"
 #include "multi.h"
 
 int main(int argc, char* argv[]) {
@@ -23,12 +24,10 @@ int main(int argc, char* argv[]) {
     unsigned char* romdata = malloc(size);
     fread(romdata, 1, size, rom);
 
-    if (gbaReady(gba)) goto finish;
-    if (gbaSendHeader(romdata, gba)) goto finish;
-    if (gbaSendMainBlock(romdata, size, gba)) goto finish;
+    if (secondStageSend(gba) == 0) {
+        secondStageLoad(romdata, size, gba);
+    }
 
-
-    finish:
     free(romdata);
     fclose(rom);
     freeGbaHandle(gba);
