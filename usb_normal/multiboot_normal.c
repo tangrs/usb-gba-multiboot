@@ -97,6 +97,7 @@ int main(void) {
             usb_serial_putchar((data>>16) & 0xff);
             usb_serial_putchar((data>>8) & 0xff);
             usb_serial_putchar(data & 0xff);
+            usb_serial_flush_output();
         }
     }
     return 0;

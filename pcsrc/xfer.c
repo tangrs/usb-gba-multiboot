@@ -8,6 +8,8 @@
 #include <errno.h>
 #include "xfer.h"
 
+#include <stdio.h>
+
 gbaHandle* initGbaHandle(char* device, int mode) {
     gbaHandle *gba = malloc(sizeof(gbaHandle));
     if (!gba) return NULL;

@@ -61,85 +61,79 @@ rom_header_end:
 .endr
 
 entry:
-    @ relocate to iwram
-    adr r1, iwram_code
-    mov r0, #0x03000000
-    adr r2, iwram_code_end
-    sub r2, r2, r1
+    @ relocate download code to iwram
+    adr r0, iwram_code_begin
+    mov r1, #0x03000000
+    @ mov r2, #(iwram_code_end - iwram_code_begin)>>2
+    @ orr r2, r2, #(1<<26)
+    @ swi 0xb0000
+    mov r2, #(((iwram_code_end - iwram_code_begin)>>2) + 0x8) & (~0x7)
+    swi 0xc0000             @ BIOS CpuFastSet
 
-    bl memcpy
+    @ init constants
+    ldr r10, io_base        @ r10 = IO port base
+    ldr r9, magic           @ r9  = magic number to signal ready for downloading
 
     mov pc, #0x03000000
 
-memcpy:
-    mov r2, r2, lsr #2
-    copyloop:
-    ldr r3,[r1]
-    str r3,[r0]
-    add r0, r0, #4
-    add r1, r1, #4
-    sub r2, r2, #1
-
-    cmp r2, #0
-    bne copyloop
-
-    bx lr
+magic:      .word 0xfa57b007
+io_base:    .word 0x04000120
 
 @ begin relocated code
 
-iwram_code:
-    mov r10, #0x04000000
-    add r10, r10, #0x120
-    ldr r1, magic
-wait_magic:
-    mov r0, r1
-    bl xfer
-    cmp r0, r1
-    beq download
+download_code_begin: .global
+    mov r8, #0x02000000     @ r8  = destination address
+    mov r7, #0              @ r7  = checksum of data
+    mov r6, #0              @ r6  = number of words to download
 
-magic: .word 0xfa57b007
+    wait_magic:
+        mov r0, r9
+        bl xfer
+        cmp r0, r9
+        bne wait_magic
 
-download:
-    @ r9 is destination address
-    mov r9, #0x02000000
+    download:
+        mov r0, #0
+        bl xfer
+        mov r6, r0
 
-    @ r8 contains number of words
-    mov r0, #0
-    bl xfer
-    mov r8, r0
+        loop:
+            mov r0, r8
+            bl xfer
+            str r0,[r8]
 
-loop:
-    mov r0, r9
-    bl xfer
-    str r0,[r9]
+            sub r6, r6, #1
+            add r8, r8, #4
+            add r7, r7, r0
 
-    sub r8, r8, #1
-    add r9, r9, #4
+            cmp r6, #0
+        bne loop
 
-    cmp r8, #0
-    bne loop
+        mov r0, r7
+        bl xfer
+        cmp r0, r7
+        bne iwram_code_begin @ if checksums dont match, restart download
 
-    mov pc, #0x02000000
+        mov pc, #0x02000000
 
+    xfer:
+        str r0,[r10]
 
-xfer:
-    str r0,[r10]
+        @ set start bit
+        ldrh r0,[r10,#0x8]
+        orr r0, r0, #0x80
+        bic r0, r0, #0x8
+        strh r0,[r10,#0x8]
 
-    @ set start bit
-    ldrh r0,[r10,#0x8]
-    orr r0, r0, #0x80
-    bic r0, r0, #0x8
-    strh r0,[r10,#0x8]
+        @ wait for transfer to complete
+        wait_startbit:
+        ldrh r0,[r10,#0x8]
+        and r0, r0, #0x80
+        cmp r0, #0
+        bne wait_startbit
 
-    @ wait for transfer to complete
-    wait_startbit:
-    ldrh r0,[r10,#0x8]
-    and r0, r0, #0x80
-    cmp r0, #0
-    bne wait_startbit
+        @ recieved data
+        ldr r0,[r10]
+        bx lr
 
-    @ recieved data
-    ldr r0,[r10]
-    bx lr
-
-iwram_code_end:
+download_code_end: .global
