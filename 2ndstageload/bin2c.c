@@ -1,3 +1,7 @@
+/*
+    Public domain
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 

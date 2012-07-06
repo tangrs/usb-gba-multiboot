@@ -1,3 +1,5 @@
+@ Public domain.
+
 _start: .global _start
     b entry
 
