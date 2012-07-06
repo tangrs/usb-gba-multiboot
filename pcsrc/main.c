@@ -16,9 +16,10 @@ enum {
 
 void printHelp() {
     fprintf(stderr,
-    "Usage: gbaxfer [-m] [-2 | -c] /path/to/file\n"
+    "Usage: gbaxfer [-2 | -c] /path/to/file\n"
+    "Default action is to send image via 2nd loader\n"
     "    -2: Send 2nd loader\n"
-    "    -c: Boot ROM from 2nd loader\n");
+    "    -c: Boot image from 2nd loader\n");
 }
 
 
