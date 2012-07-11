@@ -23,9 +23,10 @@
 
 #define masterwaittime ((1000000/16))
 
-#define GBA_READY_CMD 0x6202
-#define GBA_READY_REPLY 0x7202
-#define GBA_EXCH_MS_INFO_CMD 0x6100
+/* fun fun fun! */
+#define P_COLOR 1
+#define P_SPEED 0
+#define P_DIR 0
 
 struct gbaCrcEncryptionPair {
     unsigned init;
@@ -49,19 +50,19 @@ int gbaMultibootSend(unsigned char* romdata, unsigned length, gbaHandle* gba) {
 int gbaReady(gbaHandle* gba) {
     unsigned data, timeout = 33;
     do {
-        data = GBA_READY_CMD;
+        data = 0x6202;
         gba->xfer16(&data, gba);
         fprintf(stderr,"\rReady: Recieved %04x",data);
         timeout--;
         usleep(masterwaittime);
-    } while (data != GBA_READY_REPLY && timeout);
+    } while (data != 0x7202 && timeout);
 
-    if (data != GBA_READY_REPLY) return -1;
+    if (data != 0x7202) return -1;
     return 0;
 }
 
 int gbaSendHeader(unsigned char* header, gbaHandle* gba) {
-    unsigned data = GBA_EXCH_MS_INFO_CMD, i;
+    unsigned data = 0x6100, i;
     gba->xfer16(&data, gba);
 
     for (i=0; i<0x60;i++) {
@@ -80,18 +81,19 @@ int gbaSendHeader(unsigned char* header, gbaHandle* gba) {
 static struct gbaCrcEncryptionPair gbaGetKeys(unsigned length, gbaHandle* gba) {
     struct gbaCrcEncryptionPair state = {0};
     unsigned data, encryptionseed, hh, rr;
+    unsigned char pp = 0x81+P_COLOR*0x10+P_DIR*0x8+P_SPEED*0x2;
 
-    data = 0x63c1;
+    data = 0x6300|pp;
     gba->xfer16(&data, gba);
     fprintf(stderr,"Send encryption key: Recieved %04x\n",data);
 
-    data = 0x63c1;
+    data = 0x6300|pp;
     gba->xfer16(&data, gba);
     fprintf(stderr,"Get encryption key: Recieved %04x\n",data);
     if (!((data >> 8) == 0x73)) return state;
 
 
-    encryptionseed = ((data&0x0FF)<<8)|0x0FFFF00C1;
+    encryptionseed = ((data&0x0FF)<<8)|0x0FFFF0000|pp;
     hh = ((data&0x0FF)+0x20F) & 0xff;
 
     data = 0x6400 | hh;
